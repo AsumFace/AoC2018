@@ -22,3 +22,8 @@ docs/
 
 # Code coverage
 *.lst
+
+# ocaml stuff
+dune-project
+_build
+.merlin
