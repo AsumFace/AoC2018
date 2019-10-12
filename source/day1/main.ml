@@ -11,3 +11,8 @@ let () = printf "%d\n" result
 let () = List.map ~f:(int_of_string) lines
     |> List.fold ~f:(+) ~init:0
     |> printf "%d\n"
+
+(* solution 3 *)
+let () = lines
+    |> List.fold ~f:(fun a b -> a + (int_of_string b)) ~init:0
+    |> printf "%d\n"
