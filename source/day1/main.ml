@@ -16,3 +16,9 @@ let () = List.map ~f:(int_of_string) lines
 let () = lines
     |> List.fold ~f:(fun a b -> a + (int_of_string b)) ~init:0
     |> printf "%d\n"
+
+(* solution 4 *)
+let () = In_channel.fold_lines (In_channel.create "../../views/day1_input")
+    ~init:0
+    ~f:(fun a b -> a + (int_of_string b))
+    |> printf "%d\n"
