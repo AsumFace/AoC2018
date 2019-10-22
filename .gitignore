@@ -27,3 +27,5 @@ docs/
 dune-project
 _build
 .merlin
+
+*~

@@ -1,35 +1,49 @@
 open Core
 
 (* solution 1 *)
-(* I do not like this algorithm *)
-let stdin = In_channel.create "../../views/day2_input"
+(* looks overcomplicated AF *)
+let input_file =
+    let mapping = Unix.map_file
+        (Unix.openfile ~mode:[Unix.O_RDONLY]  "../../views/day2_input")
+        Char
+        Bigarray.c_layout
+        ~shared:false
+        [|-1|] in
+    Bigarray.reshape_1 mapping (Bigarray.Genarray.size_in_bytes mapping)
 
-(* WTF, why does Core not provide stuff like this? *)
-let sequence_of_string str =
-    Sequence.unfold ~init:str ~f:(fun state ->
-        match String.length state with
-            | 0 -> None
-            | _ -> Some (String.get state 0, String.sub ~pos:1 ~len:((String.length state) - 1) state))
+let sequence_of_bigarray barr =
+    Sequence.unfold ~init:barr
+        ~f:(fun state ->
+            if Bigarray.Array1.size_in_bytes state > 0 then
+                Some (state.{0}, Bigarray.Array1.sub state 1 (Bigarray.Array1.size_in_bytes state - 1))
+            else
+                None)
 
-let box_ids =
-    (Sequence.unfold ~init:()
-        ~f:(fun _ -> match (In_channel.input_line stdin) with
-            | Some line -> Some (sequence_of_string line, ())
-            | None -> None))
+let sequence_to_eol seq =
+    Sequence.take_while ~f:(fun c -> match c with '\n' -> false | _ -> true) seq
 
-let get_len seq = Sequence.fold ~init:0 ~f:(fun acc  _ -> acc + 1) seq
+let sequence_lines barr =
+    let sob = sequence_of_bigarray barr in
+    let empty = sequence_to_eol (Sequence.of_list ['\n']) in
+    Sequence.unfold ~init:(empty, sob)
+        ~f:(fun (prev, rem) ->
+            match Sequence.next rem with
+            | Some _ ->
+                let rem = Sequence.drop_eagerly rem (Sequence.count prev ~f:(fun _ -> true)) in
+                Some (sequence_to_eol rem, (sequence_to_eol rem, rem))
+            | None -> None)
 
 let get_match str1 str2 =
-    let () = assert ((get_len str1) = (get_len str2)) in
+    let () = assert ((Sequence.count ~f:(fun _ -> true) str1) = (Sequence.count ~f:(fun _ -> true) str2)) in
     let overlap = Sequence.zip str1 str2 |> Sequence.filter_map ~f:(fun (a, b) -> if a = b then Some a else None) in
-    ((get_len str1) - (get_len overlap), overlap)
+    ((Sequence.count ~f:(fun _ -> true) str1) - (Sequence.count ~f:(fun _ -> true) overlap), overlap)
 
 let comp_thereafter ~comp_fun seq =
-    printf "%d " (get_len seq);
+    printf "%d " (Sequence.count ~f:(fun _ -> true) seq);
     let first, seq = Option.value_exn (Sequence.next seq) in
     Sequence.unfold ~init:(first, seq)
         ~f:(fun (lhs, remainder) ->
-            if (get_len seq) > 1 then
+            if (Sequence.count ~f:(fun _ -> true) seq) > 1 then
                 let rhs, remainder = Option.value_exn (Sequence.next remainder) in
                 Some (comp_fun lhs rhs, (first, remainder))
             else
@@ -38,17 +52,19 @@ let comp_thereafter ~comp_fun seq =
 let drop_sequence ~min seq =
     Sequence.unfold ~init:seq
         ~f:(fun seq ->
-            printf "%d " (get_len seq);
-            printf "%d " (get_len seq);
+            printf "%d " (Sequence.count ~f:(fun _ -> true) seq);
+            printf "%d " (Sequence.count ~f:(fun _ -> true) seq);
             let _, remainder = Option.value_exn (Sequence.next seq) in
-            printf "%d " (get_len remainder);
-            if get_len seq >= min then
+            printf "%d " (Sequence.count ~f:(fun _ -> true) remainder);
+            if Sequence.count ~f:(fun _ -> true) seq >= min then
                 Some (seq, remainder)
             else
                 None)
 
 let print_charseq seq =
     Sequence.iter seq ~f:(printf "%c")
+
+let box_ids = sequence_lines input_file
 
 let find_solution seq =
     Sequence.iter
